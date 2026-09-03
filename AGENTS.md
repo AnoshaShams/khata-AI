@@ -42,10 +42,35 @@ Photo → OCR ──┐
 Voice → STT ──┘
 ```
 
-## Session Start
+## Branching Workflow
+
+Two people committing directly to `main` at the same time causes clashes — use one
+personal branch each instead:
+
+- Anosha works on `anosha-voice`
+- Mariam works on `mariam-ocr-parser`
+
+```bash
+git checkout -b anosha-voice        # or mariam-ocr-parser
+# ...work, commit normally on this branch...
+git push -u origin anosha-voice
+```
+
+Then open a Pull Request on GitHub from your branch → `main`, review quickly, merge.
+
+**Don't let branches sit long before merging.** Merge as soon as your piece works against
+the current contract (see Merging section below) — small frequent merges, not one big
+merge at the end. After any merge to `main`, sync your own branch before continuing:
 
 ```bash
 git checkout main && git pull
+git checkout anosha-voice && git merge main
+```
+
+## Session Start
+
+```bash
+git checkout <your-branch> && git pull
 ```
 - Check this file's contracts section for `[CONTRACT]` changes since last session
 - Swap any stub for a now-real dependency immediately
