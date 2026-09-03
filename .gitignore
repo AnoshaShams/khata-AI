@@ -1,0 +1,28 @@
+   # Environment variables
+   .env
+   .env.local
+
+   # Dependencies
+   node_modules/
+   __pycache__/
+   *.pyc
+   venv/
+   env/
+
+   # Build outputs
+   dist/
+   build/
+   *.egg-info/
+
+   # OS files
+   .DS_Store
+   Thumbs.db
+
+   # IDE
+   .vscode/
+   .idea/
+
+   # Audio/temp files from testing
+   *.wav
+   *.mp3
+   temp/
