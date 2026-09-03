@@ -24,7 +24,7 @@ manually type or learn a new system.
 
 ## Tech stack
 
-- OCR: Azure AI Vision (Read API)
+- OCR: Alibaba Cloud Qwen2-VL (DashScope)
 - STT: OpenAI Whisper API
 - Parsing: LLM-based structured extraction
 - Frontend: React
