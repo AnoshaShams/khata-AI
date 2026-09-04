@@ -24,9 +24,10 @@ manually type or learn a new system.
 
 ## Tech stack
 
-- OCR: Alibaba Cloud Qwen2-VL (DashScope)
-- STT: OpenAI Whisper API
-- Parsing: LLM-based structured extraction
+- OCR: Alibaba Cloud Qwen2-VL (Model Studio)
+- Parsing: Alibaba Cloud Qwen-plus (Model Studio)
+- STT: Alibaba Cloud Paraformer / Qwen-Audio ASR (Model Studio)
+- TTS: Alibaba Cloud CosyVoice (Model Studio)
 - Frontend: React
 - Backend: Python (FastAPI)
 
