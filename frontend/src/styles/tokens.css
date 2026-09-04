@@ -1,0 +1,33 @@
+:root {
+  /* Ledger-paper palette. Red/green are reserved for money state only. */
+  --paper: #efe3c4;
+  --paper-deep: #e6d6ab;
+  --rule: #c9b183;
+  --ink: #24304a;
+  --ink-soft: #55607a;
+  --ink-faint: #8b93a8;
+
+  --maroon: #7a2a2e;
+  --maroon-deep: #5c1f22;
+  --due: #b23a2e;
+  --due-bg: #f4e2df;
+  --paid: #3e6b4f;
+  --paid-bg: #e3ede6;
+  --gold: #a97a2e;
+
+  --font-display: "Zilla Slab", "Georgia", serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --shell-width: 480px;
+}
