@@ -26,3 +26,7 @@
    *.wav
    *.mp3
    temp/
+# Never commit these
+*.csv
+*.exe
+*.zip
