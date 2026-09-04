@@ -56,7 +56,7 @@ Built for the Alibaba Cloud AI Hackathon Pakistan 2026. 3-day build sprint (in p
 
 ## Running locally
 
-1. Clone the repo and copy `.env.example` to `.env`, filling in your own API keys
+1. Clone the repo and copy `backend/.env.example` to `.env`, filling in your own API keys
    (OpenAI, Azure Vision) — never commit `.env`.
 2. Backend (Python/FastAPI):
    ```
