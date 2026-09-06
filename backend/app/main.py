@@ -103,6 +103,26 @@ async def transcribe_voice(file: UploadFile = File(...), language_mode: str = Fo
         raise HTTPException(status_code=422, detail=f"Couldn't transcribe that audio. {e}")
     return extracted
 
+# --- Voice path, combined: audio -> Parsed Transaction, in one call ---
+# This is what the Confirmation Loop's frontend should call — chains
+# transcribe_audio() and parse_transcript() so the frontend only needs one
+# request to go from "shopkeeper spoke" to "here's the transaction to confirm."
+@app.post("/voice/process", response_model=ParsedTransaction)
+async def process_voice(file: UploadFile = File(...), language_mode: str = Form("urdu")):
+    audio_bytes = await file.read()
+    try:
+        extracted = transcribe_audio(audio_bytes, filename=file.filename or "recording.wav",
+                                      language_mode=language_mode)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Couldn't transcribe that audio. {e}")
+
+    try:
+        result = parse_transcript(extracted)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Transcribed OK, but couldn't parse a transaction from it. {e}")
+    if result is None:
+        raise HTTPException(status_code=422, detail="Transcribed OK, but no transaction could be parsed. Try again.")
+    return result
 
 # --- TTS: text -> spoken audio, used for the Spoken Daily Summary (see tts.py) ---
 @app.post("/voice/speak")
@@ -113,4 +133,4 @@ def speak_text(text: str = Form(...), voice: str | None = Form(None)):
         raise HTTPException(status_code=422, detail=str(e))
     # Adjust media_type if the model returns a different audio format (check
     # the Model Studio page for cosyvoice-v3-plus's actual output format).
-    return Response(content=audio_bytes, media_type="audio/wav")
+    return Response(content=audio_bytes, media_type="audio/mpeg")
