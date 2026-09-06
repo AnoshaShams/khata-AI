@@ -37,6 +37,14 @@ export function uploadLedgerPhoto(file) {
   return request("/ledger/upload", { method: "POST", body: formData });
 }
 
+// --- Voice path: audio -> single Parsed Transaction (STT + parse combined in one call) ---
+export function processVoice(audioFile, languageMode = "urdu") {
+  const formData = new FormData();
+  formData.append("file", audioFile);
+  formData.append("language_mode", languageMode);
+  return request("/voice/process", { method: "POST", body: formData });
+}
+
 // --- Confirm a reviewed transaction -> writes to the ledger ---
 export function confirmTransaction({ businessId, customerName, amount, type, item, source }) {
   return request("/ledger/confirm", {
