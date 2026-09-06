@@ -9,6 +9,9 @@ from app.schemas import ExtractedText, ParsedTransaction, ConfirmedTransactionIn
 from app.dashboard import get_dashboard
 from app.reminders import get_pending_reminders
 from app.trust_score import compute_trust_score
+from app.stt import transcribe_audio
+from app.tts import synthesize_speech
+from fastapi.responses import Response
 
 app = FastAPI(title="KhataAI API")
 
@@ -87,3 +90,27 @@ def score(business_id: str, db: Session = Depends(get_session)):
 @app.get("/reminders/{business_id}")
 def reminders(business_id: str, db: Session = Depends(get_session)):
     return get_pending_reminders(db, business_id)
+
+
+# --- Voice path, step 1: audio -> Extracted-Text contract (see stt.py + CONTRACTS.md) ---
+@app.post("/voice/transcribe", response_model=ExtractedText)
+async def transcribe_voice(file: UploadFile = File(...), language_mode: str = Form("urdu")):
+    audio_bytes = await file.read()
+    try:
+        extracted = transcribe_audio(audio_bytes, filename=file.filename or "recording.wav",
+                                      language_mode=language_mode)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Couldn't transcribe that audio. {e}")
+    return extracted
+
+
+# --- TTS: text -> spoken audio, used for the Spoken Daily Summary (see tts.py) ---
+@app.post("/voice/speak")
+def speak_text(text: str = Form(...), voice: str | None = Form(None)):
+    try:
+        audio_bytes = synthesize_speech(text, voice=voice)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    # Adjust media_type if the model returns a different audio format (check
+    # the Model Studio page for cosyvoice-v3-plus's actual output format).
+    return Response(content=audio_bytes, media_type="audio/wav")
