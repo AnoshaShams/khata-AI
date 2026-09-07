@@ -412,3 +412,72 @@ body {
   text-align: center;
   margin-top: var(--space-2);
 }
+
+/* --- Add these to the end of frontend/src/styles/global.css --- */
+
+/* --- Photo/Voice mode toggle (Upload screen) --- */
+.mode-toggle {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.mode-toggle__btn {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--rule);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.mode-toggle__btn.is-active {
+  background: var(--maroon);
+  border-color: var(--maroon);
+  color: var(--paper);
+}
+
+/* --- Urdu/English toggle (Voice recording screen) --- */
+.lang-toggle {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.lang-toggle__btn {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--rule);
+  background: #fff;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.lang-toggle__btn.is-active {
+  background: var(--paid-bg);
+  border-color: var(--paid);
+  color: var(--paid);
+}
+
+.lang-toggle__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Recording state pulse on the primary button --- */
+.btn--primary.is-recording {
+  background: var(--due);
+  animation: pulse-record 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-record {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}

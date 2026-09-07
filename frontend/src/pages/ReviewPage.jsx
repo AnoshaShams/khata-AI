@@ -6,6 +6,10 @@ export default function ReviewPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const incoming = location.state?.transactions;
+  // Which input path produced these transactions — defaults to "photo" so
+  // the existing OCR flow (which doesn't pass this yet) keeps working
+  // unchanged. Voice flow passes source: "voice" explicitly.
+  const sourceType = location.state?.source || "photo";
 
   // Give every row a stable local id + local edit state + accepted/discarded state.
   const [rows, setRows] = useState(() =>
@@ -67,7 +71,7 @@ export default function ReviewPage() {
           amount: parseFloat(row.amount),
           type: row.type,
           item: row.item,
-          source: "photo",
+          source: sourceType,
         });
       }
       navigate("/dashboard");

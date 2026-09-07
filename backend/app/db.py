@@ -102,3 +102,26 @@ def save_transaction(db, business_id: str, customer_name: str, type_: str, amoun
     db.commit()
     db.refresh(txn)
     return txn
+
+class StockFlag(Base):
+    __tablename__ = "stock_flags"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    business_id = Column(String, index=True, nullable=False)
+    item = Column(String, nullable=False)
+    flagged_at = Column(DateTime, default=datetime.datetime.utcnow)
+    resolved = Column(Boolean, default=False)
+
+
+def log_stock_flag(db, business_id: str, item: str) -> StockFlag:
+    flag = StockFlag(business_id=business_id, item=item)
+    db.add(flag)
+    db.commit()
+    db.refresh(flag)
+    return flag
+
+
+def get_stock_flags(db, business_id: str, include_resolved: bool = False) -> list[StockFlag]:
+    query = db.query(StockFlag).filter(StockFlag.business_id == business_id)
+    if not include_resolved:
+        query = query.filter(StockFlag.resolved == False)  # noqa: E712
+    return query.order_by(StockFlag.flagged_at.desc()).all()
