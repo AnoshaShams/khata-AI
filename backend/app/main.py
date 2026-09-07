@@ -1,17 +1,18 @@
 from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from app.db import init_db, get_session, save_transaction
+from app.db import init_db, get_session, save_transaction, log_stock_flag, get_stock_flags
 from app.ocr import extract_transactions_from_photo
 from app.parser import parse_transcript
+from app.stt import transcribe_audio
+from app.tts import synthesize_speech
+from app.stock_nudges import detect_stock_mention
 from app.schemas import ExtractedText, ParsedTransaction, ConfirmedTransactionIn
 from app.dashboard import get_dashboard
 from app.reminders import get_pending_reminders
 from app.trust_score import compute_trust_score
-from app.stt import transcribe_audio
-from app.tts import synthesize_speech
-from fastapi.responses import Response
 
 app = FastAPI(title="KhataAI API")
 
@@ -47,7 +48,38 @@ async def upload_ledger_photo(file: UploadFile = File(...)):
     return transactions
 
 
-# --- Voice path: transcript -> Parsed Transaction (see parser.py + CONTRACTS.md) ---
+# --- Voice path, step 1: audio -> Extracted-Text contract (see stt.py + CONTRACTS.md) ---
+@app.post("/voice/transcribe", response_model=ExtractedText)
+async def transcribe_voice(file: UploadFile = File(...), language_mode: str = Form("urdu")):
+    audio_bytes = await file.read()
+    try:
+        extracted = transcribe_audio(audio_bytes, filename=file.filename or "recording.wav",
+                                      language_mode=language_mode)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Couldn't transcribe that audio. {e}")
+    return extracted
+
+
+# --- Voice path, combined: audio -> Parsed Transaction, in one call ---
+@app.post("/voice/process", response_model=ParsedTransaction)
+async def process_voice(file: UploadFile = File(...), language_mode: str = Form("urdu")):
+    audio_bytes = await file.read()
+    try:
+        extracted = transcribe_audio(audio_bytes, filename=file.filename or "recording.wav",
+                                      language_mode=language_mode)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Couldn't transcribe that audio. {e}")
+
+    try:
+        result = parse_transcript(extracted)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Transcribed OK, but couldn't parse a transaction from it. {e}")
+    if result is None:
+        raise HTTPException(status_code=422, detail="Transcribed OK, but no transaction could be parsed. Try again.")
+    return result
+
+
+# --- Voice path, step 2: transcript -> Parsed Transaction (see parser.py + CONTRACTS.md) ---
 @app.post("/ledger/parse-voice", response_model=ParsedTransaction)
 def parse_voice(extracted: ExtractedText):
     try:
@@ -57,6 +89,16 @@ def parse_voice(extracted: ExtractedText):
     if result is None:
         raise HTTPException(status_code=422, detail="Couldn't parse that transcript into a transaction. Try again.")
     return result
+
+
+# --- TTS: text -> spoken audio, used for the Spoken Daily Summary (see tts.py) ---
+@app.post("/voice/speak")
+def speak_text(text: str = Form(...), voice: str | None = Form(None)):
+    try:
+        audio_bytes = synthesize_speech(text, voice=voice)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return Response(content=audio_bytes, media_type="audio/mpeg")
 
 
 # --- Confirmation: shopkeeper accepted/edited a transaction -> write to ledger ---
@@ -92,23 +134,10 @@ def reminders(business_id: str, db: Session = Depends(get_session)):
     return get_pending_reminders(db, business_id)
 
 
-# --- Voice path, step 1: audio -> Extracted-Text contract (see stt.py + CONTRACTS.md) ---
-@app.post("/voice/transcribe", response_model=ExtractedText)
-async def transcribe_voice(file: UploadFile = File(...), language_mode: str = Form("urdu")):
-    audio_bytes = await file.read()
-    try:
-        extracted = transcribe_audio(audio_bytes, filename=file.filename or "recording.wav",
-                                      language_mode=language_mode)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=f"Couldn't transcribe that audio. {e}")
-    return extracted
-
-# --- Voice path, combined: audio -> Parsed Transaction, in one call ---
-# This is what the Confirmation Loop's frontend should call — chains
-# transcribe_audio() and parse_transcript() so the frontend only needs one
-# request to go from "shopkeeper spoke" to "here's the transaction to confirm."
-@app.post("/voice/process", response_model=ParsedTransaction)
-async def process_voice(file: UploadFile = File(...), language_mode: str = Form("urdu")):
+# --- Voice-based Stock Nudges: audio -> detect "item ran out" mention -> log flag ---
+@app.post("/voice/stock-check")
+async def stock_check(file: UploadFile = File(...), language_mode: str = Form("urdu"),
+                       business_id: str = Form(...), db: Session = Depends(get_session)):
     audio_bytes = await file.read()
     try:
         extracted = transcribe_audio(audio_bytes, filename=file.filename or "recording.wav",
@@ -117,20 +146,21 @@ async def process_voice(file: UploadFile = File(...), language_mode: str = Form(
         raise HTTPException(status_code=422, detail=f"Couldn't transcribe that audio. {e}")
 
     try:
-        result = parse_transcript(extracted)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=f"Transcribed OK, but couldn't parse a transaction from it. {e}")
-    if result is None:
-        raise HTTPException(status_code=422, detail="Transcribed OK, but no transaction could be parsed. Try again.")
-    return result
-
-# --- TTS: text -> spoken audio, used for the Spoken Daily Summary (see tts.py) ---
-@app.post("/voice/speak")
-def speak_text(text: str = Form(...), voice: str | None = Form(None)):
-    try:
-        audio_bytes = synthesize_speech(text, voice=voice)
+        item = detect_stock_mention(extracted)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
-    # Adjust media_type if the model returns a different audio format (check
-    # the Model Studio page for cosyvoice-v3-plus's actual output format).
-    return Response(content=audio_bytes, media_type="audio/mpeg")
+
+    if item is None:
+        return {"detected": False, "item": None}
+
+    flag = log_stock_flag(db, business_id=business_id, item=item)
+    return {"detected": True, "item": flag.item, "flag_id": flag.id}
+
+
+@app.get("/stock-flags/{business_id}")
+def stock_flags(business_id: str, db: Session = Depends(get_session)):
+    flags = get_stock_flags(db, business_id)
+    return [
+        {"id": f.id, "item": f.item, "flagged_at": f.flagged_at.isoformat(), "resolved": f.resolved}
+        for f in flags
+    ]
